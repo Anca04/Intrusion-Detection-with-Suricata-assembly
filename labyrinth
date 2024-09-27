@@ -1,0 +1,204 @@
+%include "../include/io.mac"
+
+extern printf
+extern position
+global solve_labyrinth
+
+; you can declare any helper variables in .data or .bss
+struc point
+	.x: resd 1
+	.y: resd 1
+endstruc
+
+section .data
+    queue_x: dd 31 ; adaug in coada pentru linii
+    queue_y: dd 31 ; adaug in coada pentru coloane
+    start: dd 0 
+    final: dd 1
+    queue: times point_size * 100 db 0 
+    x_curent: dd 0
+    y_curent: dd 0
+    v_x: dd 1, 0, 0, -1 ; vector directie pe linii
+    v_y: dd 0, 1, -1, 0 ; vector directie pe coloane
+    x_calculated: dd 0
+    y_calculated: dd 0
+
+section .text
+
+; void solve_labyrinth(int *out_line, int *out_col, int m, int n, char **labyrinth);
+solve_labyrinth:
+    ;; DO NOT MODIFY
+    push    ebp
+    mov     ebp, esp
+    pusha
+
+    mov     eax, [ebp + 8]  ; unsigned int *out_line, pointer to structure containing exit position
+    mov     ebx, [ebp + 12] ; unsigned int *out_col, pointer to structure containing exit position
+    mov     ecx, [ebp + 16] ; unsigned int m, number of lines in the labyrinth
+    mov     edx, [ebp + 20] ; unsigned int n, number of colons in the labyrinth
+    mov     esi, [ebp + 24] ; char **a, matrix represantation of the labyrinth
+    ;; DO NOT MODIFY
+
+    xor eax, eax
+    xor ebx, ebx
+    xor edi, edi 
+
+    mov edi, 0
+    mov [x_curent], edi
+    mov [y_curent], edi
+    mov [y_calculated], edi
+    mov [x_calculated], edi
+    mov [start], edi
+    mov edi, 1
+    mov [final], edi
+
+
+; cat timp nu am ajuns la pozitia finala n -1 sau m - 1
+while:
+    mov eax, [start]
+    mov ebx, [final]
+
+    mov edi, [y_curent]
+    mov eax, edx
+    dec eax
+    cmp edi, eax
+    je end_solve_loop
+
+    mov edi, [x_curent]
+    mov eax, ecx
+    dec eax
+    cmp edi, eax
+    je end_solve_loop
+
+incepe_alg:
+    mov eax, [start]
+
+    ; accesăm membrul x
+    mov ebx, [queue + point_size * eax + point.x] 
+
+    ; accesăm membrul y
+    mov edi, [queue + point_size * eax + point.y] 
+    
+    ; cresc eax, adica start
+    inc eax
+    mov [start], eax
+
+    ; calculez pozitia curenta
+    mov [x_curent], ebx
+    mov [y_curent], edi 
+
+    ; contor
+    xor edi, edi
+    jmp for
+
+; parcurg vectoii de directie
+for:
+    ; accesez elementele din vectori
+    mov eax, [v_x + edi * 4]
+    mov ebx, [v_y + edi * 4]
+
+    ; adun pozitia curenta si elementul din vector pentru a determina 
+    ; urmatoarea pozitie
+    add eax, [x_curent]
+    add ebx, [y_curent]
+
+    mov [x_calculated], eax
+    mov eax, [x_calculated]
+
+    mov [y_calculated], ebx
+    mov ebx, [y_calculated]
+    jmp boundaries1
+
+; testez daca urmatoarea pozitie este una valida, adica daca ma aflu in matrice
+boundaries1:
+    mov eax, [x_calculated]
+
+    ; mai intai < 0 (pt linii)
+    cmp eax, 0
+    jge boundaries2
+
+    jmp incrementare
+
+boundaries2:
+    mov eax, [x_calculated]
+    
+    ; apoi < m
+    cmp eax, ecx
+    jl boundaries3
+
+    jmp incrementare
+
+boundaries3:
+    mov ebx, [y_calculated]
+    
+    ; mai intai < 0 (pt coloane)
+    cmp ebx, 0
+    jge boundaries4
+
+    jmp incrementare
+
+boundaries4:
+    mov ebx, [y_calculated]
+
+    ; apoi < n
+    cmp ebx, edx
+    jl verify_free_path
+    
+    jmp incrementare
+
+; verific daca ma pot muta, adica daca elementul este 0
+verify_free_path:
+    ; accesez elementul
+    mov eax, [x_calculated]
+    mov ebx, [esi + eax * 4]
+    mov eax, [y_calculated]
+
+    cmp byte [eax + ebx], 0x30
+    jne incrementare
+
+    jmp add_queue
+
+; adaug in coada daca urmatoarea pozitie este valida
+add_queue:
+    mov eax, [final]
+    
+    mov ebx, [x_calculated]
+    mov [queue + point_size * eax + point.x], ebx
+
+    mov ebx, [y_calculated]
+    mov [queue + point_size * eax + point.y], ebx
+
+    inc eax
+    mov [final], eax
+
+    ; adaug 1 pentru a marca pozitia curenta
+    mov eax, [x_curent]
+    mov ebx, [esi + eax * 4]
+    mov eax, [y_curent]
+    mov byte [eax + ebx], 0x31
+    
+incrementare:
+    inc edi
+    cmp edi, 3
+    jle for
+
+    jmp while
+
+; adaug rezultatul final in registri aferenti
+end_solve_loop:
+    mov edi, [x_curent]
+    mov eax, [ebp + 8]
+    mov [eax], edi
+
+    mov edi, [y_curent]
+    mov ebx, [ebp + 12]
+    mov [ebx], edi
+
+end:
+    ;; DO NOT MODIFY
+
+    popa
+    leave
+    ret
+
+    ;; DO NOT MODIFY
